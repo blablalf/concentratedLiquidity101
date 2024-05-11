@@ -6,4 +6,24 @@ library Tick {
         bool initialized;
         uint128 liquidity;
     }
+
+    /*
+    From https://docs.soliditylang.org/en/latest/style-guide.html#function-argument-names
+    When writing library functions that operate on a custom struct, the struct should be the first argument and should always be named self.
+    */
+    function update(
+        mapping(int24 => Tick.Info) storage self,
+        int24 tick,
+        uint128 liquidityDelta
+    ) internal {
+        Tick.Info storage tickInfo = self[tick];
+        uint128 liquidityBefore = tickInfo.liquidity;
+        uint128 liquidityAfter = liquidityBefore + liquidityDelta;
+
+        if (liquidityBefore == 0) {
+            tickInfo.initialized = true;
+        }
+
+        tickInfo.liquidity = liquidityAfter;
+    }
 }

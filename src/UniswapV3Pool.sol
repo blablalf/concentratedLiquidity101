@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.14;
 
+import "./interfaces/IERC20.sol";
+import "./interfaces/IUniswapV3MintCallback.sol";
+
 import "./lib/Position.sol";
 import "./lib/Tick.sol";
 contract UniswapV3Pool {
@@ -8,6 +11,20 @@ contract UniswapV3Pool {
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
 
+    error InvalidTickRange();
+    error InsufficientInputAmount();
+    error ZeroLiquidity();
+
+    event Mint(
+        address sender,
+        address indexed owner,
+        int24 indexed tickLower,
+        int24 indexed tickUpper,
+        uint128 amount,
+        uint256 amount0,
+        uint256 amount1
+    );
+    
     int24 internal constant MIN_TICK = -887272;
     int24 internal constant MAX_TICK = -MIN_TICK;
 
@@ -42,5 +59,73 @@ contract UniswapV3Pool {
         token1 = token1_;
 
         slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
+    }
+
+    /* 
+    Let's outline a quick plan of how minting will work:
+    a) User specifies a price range and an amount of liquidity;
+    b) The contract updates the ticks and positions mappings;
+    c) The contract calculates token amounts the user must send (we'll pre-calculate and hard code them);
+    d) The contract takes tokens from the user and verifies that the correct amounts were set.
+    */
+    function mint(
+        address owner,
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 amount
+    ) external returns (uint256 amount0, uint256 amount1) {
+        if (
+            lowerTick >= upperTick ||
+            lowerTick < MIN_TICK ||
+            upperTick > MAX_TICK
+        ) revert InvalidTickRange();
+
+        if (amount == 0) revert ZeroLiquidity();
+
+        ticks.update(lowerTick, amount);
+        ticks.update(upperTick, amount);
+
+        Position.Info storage position = positions.get(
+            owner,
+            lowerTick,
+            upperTick
+        );
+        position.update(amount);
+
+        /*
+        we need to calculate the amounts that the user must deposit. 
+        Luckily, we have already figured out the formulas and calculated the exact amounts in the previous part.
+        So, we’re going to hard-code them.
+        */
+        amount0 = 0.998976618347425280 ether;
+        amount1 = 5000 ether;
+
+        // We will also update the liquidity of the pool, based on the amount being added.
+        liquidity += uint128(amount);
+
+        // Now, we’re ready to take tokens from the user. This is done via a callback
+        uint256 balance0Before;
+        uint256 balance1Before;
+        if (amount0 > 0) balance0Before = balance0();
+        if (amount1 > 0) balance1Before = balance1();
+        IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(
+            amount0,
+            amount1,
+            bytes("")
+        );
+        if (amount0 > 0 && balance0Before + amount0 > balance0())
+            revert InsufficientInputAmount();
+        if (amount1 > 0 && balance1Before + amount1 > balance1())
+            revert InsufficientInputAmount();
+        
+        emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
+    }
+
+    function balance0() internal returns (uint256 balance) {
+        balance = IERC20(token0).balanceOf(address(this));
+    }
+
+    function balance1() internal returns (uint256 balance) {
+        balance = IERC20(token1).balanceOf(address(this));
     }
 }
