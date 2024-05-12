@@ -11,8 +11,8 @@ contract UniswapV3PoolTest is Test {
     ERC20Mintable token1;
     UniswapV3Pool pool;
 
-    bool shouldTransferInCallback = true;
-    bool shouldSwapInCallback = true;
+    bool transferInMintCallback = true;
+    bool transferInSwapCallback = true;
 
     struct TestCaseParams {
         uint256 wethBalance;
@@ -22,8 +22,8 @@ contract UniswapV3PoolTest is Test {
         int24 upperTick;
         uint128 liquidity;
         uint160 currentSqrtP;
-        bool shouldTransferInCallback;
-        bool shouldSwapInCallback;
+        bool transferInMintCallback;
+        bool transferInSwapCallback;
         bool mintLiqudity;
     }
 
@@ -52,16 +52,26 @@ contract UniswapV3PoolTest is Test {
         );
 
         if (params.mintLiqudity) {
+            token0.approve(address(this), params.wethBalance);
+            token1.approve(address(this), params.usdcBalance);
+            
+            UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+                token0: address(token0),
+                token1: address(token1),
+                payer: address(this)
+            });
+
             (poolBalance0, poolBalance1) = pool.mint(
                 address(this),
                 params.lowerTick,
                 params.upperTick,
-                params.liquidity
+                params.liquidity,
+                abi.encode(extra)
             );
         }
 
-        shouldTransferInCallback = params.shouldTransferInCallback;
-        shouldSwapInCallback = params.shouldSwapInCallback;
+        transferInMintCallback = params.transferInMintCallback;
+        transferInSwapCallback = params.transferInSwapCallback;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -78,8 +88,8 @@ contract UniswapV3PoolTest is Test {
             upperTick: 86129,
             liquidity: 1517882343751509868544,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: true,
-            shouldSwapInCallback: true,
+            transferInMintCallback: true,
+            transferInSwapCallback: true,
             mintLiqudity: true
         });
 
@@ -144,14 +154,20 @@ contract UniswapV3PoolTest is Test {
             upperTick: 86129,
             liquidity: 1517882343751509868544,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: false,
-            shouldSwapInCallback: true,
+            transferInMintCallback: false,
+            transferInSwapCallback: true,
             mintLiqudity: false
         });
         setupTestCase(params);
 
+        UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+                token0: address(token0),
+                token1: address(token1),
+                payer: address(this)
+            });
+
         vm.expectRevert(UniswapV3Pool.InvalidTickRange.selector);
-        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity);
+        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity, abi.encode(extra));
     }
 
     function testMintInvalidTickTooBig() public {
@@ -163,14 +179,20 @@ contract UniswapV3PoolTest is Test {
             upperTick: 887273,
             liquidity: 1517882343751509868544,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: false,
-            shouldSwapInCallback: true,
+            transferInMintCallback: false,
+            transferInSwapCallback: true,
             mintLiqudity: false
         });
         setupTestCase(params);
 
+        UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+                token0: address(token0),
+                token1: address(token1),
+                payer: address(this)
+            });
+
         vm.expectRevert(UniswapV3Pool.InvalidTickRange.selector);
-        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity);
+        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity, abi.encode(extra));
     }
 
     function testMintInvalidLiquidity() public {
@@ -182,14 +204,20 @@ contract UniswapV3PoolTest is Test {
             upperTick: 86129,
             liquidity: 0,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: false,
-            shouldSwapInCallback: true,
+            transferInMintCallback: false,
+            transferInSwapCallback: true,
             mintLiqudity: false
         });
         setupTestCase(params);
 
+        UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+                token0: address(token0),
+                token1: address(token1),
+                payer: address(this)
+            });
+
         vm.expectRevert(UniswapV3Pool.ZeroLiquidity.selector);
-        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity);
+        pool.mint(address(this), params.lowerTick, params.upperTick, params.liquidity, abi.encode(extra));
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -206,8 +234,8 @@ contract UniswapV3PoolTest is Test {
             upperTick: 86129,
             liquidity: 1517882343751509868544,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: true,
-            shouldSwapInCallback: true,
+            transferInMintCallback: true,
+            transferInSwapCallback: true,
             mintLiqudity: true
         });
         (uint256 poolBalance0, uint256 poolBalance1) = setupTestCase(params);
@@ -218,7 +246,13 @@ contract UniswapV3PoolTest is Test {
         token1.mint(address(this), swapAmount);
         token1.approve(address(this), swapAmount);
 
-        (int256 amount0Delta, int256 amount1Delta) = pool.swap(address(this));
+        UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+            token0: address(token0),
+            token1: address(token1),
+            payer: address(this)
+        });
+
+        (int256 amount0Delta, int256 amount1Delta) = pool.swap(address(this),  abi.encode(extra));
 
         assertEq(amount0Delta, -0.008396714242162444 ether, "invalid ETH out");
         assertEq(amount1Delta, 42 ether, "invalid USDC in");
@@ -269,14 +303,20 @@ contract UniswapV3PoolTest is Test {
             upperTick: 86129,
             liquidity: 1517882343751509868544,
             currentSqrtP: 5602277097478614198912276234240,
-            shouldTransferInCallback: true,
-            shouldSwapInCallback: false,
+            transferInMintCallback: true,
+            transferInSwapCallback: false,
             mintLiqudity: true
         });
         setupTestCase(params);
 
+        UniswapV3Pool.CallbackData memory extra = UniswapV3Pool.CallbackData({
+            token0: address(token0),
+            token1: address(token1),
+            payer: address(this)
+        });
+
         vm.expectRevert(UniswapV3Pool.InsufficientInputAmount.selector);
-        pool.swap(address(this));
+        pool.swap(address(this), abi.encode(extra));
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -285,21 +325,31 @@ contract UniswapV3PoolTest is Test {
     //
     ////////////////////////////////////////////////////////////////////////////
     function uniswapV3MintCallback(uint256 amount0, uint256 amount1, bytes calldata data) public {
-        if (shouldTransferInCallback) {
-            token0.transfer(msg.sender, amount0);
-            token1.transfer(msg.sender, amount1);
+        if (transferInMintCallback) {
+            UniswapV3Pool.CallbackData memory extra = abi.decode(
+                data,
+                (UniswapV3Pool.CallbackData)
+            );
+
+            IERC20(extra.token0).transferFrom(extra.payer, msg.sender, amount0);
+            IERC20(extra.token1).transferFrom(extra.payer, msg.sender, amount1);
         }
     }
 
     function uniswapV3SwapCallback(int256 amount0, int256 amount1, bytes calldata data) public {
 
-        if (shouldSwapInCallback) {
+        if (transferInSwapCallback) {
+             UniswapV3Pool.CallbackData memory extra = abi.decode(
+                data,
+                (UniswapV3Pool.CallbackData)
+            );
+
             if (amount0 > 0) {
-                token0.transfer(msg.sender, uint256(amount0));
+                IERC20(extra.token0).transferFrom(extra.payer, msg.sender, uint256(amount0));
             }
 
             if (amount1 > 0) {
-                token1.transfer(msg.sender, uint256(amount1));
+                IERC20(extra.token1).transferFrom(extra.payer, msg.sender, uint256(amount1));
             }
         }
     }
