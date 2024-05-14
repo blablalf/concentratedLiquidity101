@@ -7,10 +7,13 @@ import "./interfaces/IUniswapV3SwapCallback.sol";
 
 import "./lib/Position.sol";
 import "./lib/Tick.sol";
+import "./lib/TickBitMap.sol";
+
 contract UniswapV3Pool {
-    using Tick for mapping(int24 => Tick.Info);
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
+    using Tick for mapping(int24 => Tick.Info);
+    using TickBitmap for mapping(int16 => uint256);
 
     error InvalidTickRange();
     error InsufficientInputAmount();
@@ -66,6 +69,8 @@ contract UniswapV3Pool {
     mapping(int24 => Tick.Info) public ticks;
     // Positions info
     mapping(bytes32 => Position.Info) public positions;
+
+    mapping(int16 => uint256) public tickBitmap;
 
     constructor(
         address token0_,
