@@ -145,13 +145,13 @@ contract UniswapV3Pool {
         Slot0 memory slot0_ = slot0;
 
         amount0 = Math.calcAmount0Delta(
-            slot0_.sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(slot0_.tick),
             TickMath.getSqrtRatioAtTick(upperTick),
             amount
         );
 
         amount1 = Math.calcAmount1Delta(
-            slot0_.sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(slot0_.tick),
             TickMath.getSqrtRatioAtTick(lowerTick),
             amount
         );
