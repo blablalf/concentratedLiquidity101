@@ -5,9 +5,11 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IUniswapV3MintCallback.sol";
 import "./interfaces/IUniswapV3SwapCallback.sol";
 
+import "./lib/Math.sol";
 import "./lib/Position.sol";
 import "./lib/Tick.sol";
-import "./lib/TickBitMap.sol";
+import "./lib/TickBitmap.sol";
+import "./lib/TickMath.sol";
 
 contract UniswapV3Pool {
     using Position for mapping(bytes32 => Position.Info);
@@ -106,8 +108,15 @@ contract UniswapV3Pool {
 
         if (amount == 0) revert ZeroLiquidity();
 
-        ticks.update(lowerTick, amount);
-        ticks.update(upperTick, amount);
+        bool flippedLower = ticks.update(lowerTick, amount);
+        bool flippedUpper = ticks.update(upperTick, amount);
+
+        if (flippedLower) {
+            tickBitmap.flipTick(lowerTick, 1);
+        }
+        if (flippedUpper) {
+            tickBitmap.flipTick(upperTick, 1);
+        }
 
         Position.Info storage position = positions.get(
             owner,
@@ -116,13 +125,19 @@ contract UniswapV3Pool {
         );
         position.update(amount);
 
-        /*
-        we need to calculate the amounts that the user must deposit. 
-        Luckily, we have already figured out the formulas and calculated the exact amounts in the previous part.
-        So, we’re going to hard-code them.
-        */
-        amount0 = 0.998976618347425280 ether;
-        amount1 = 5000 ether;
+        Slot0 memory slot0_ = slot0;
+
+        amount0 = Math.calcAmount0Delta(
+            slot0_.sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(upperTick),
+            amount
+        );
+
+        amount1 = Math.calcAmount1Delta(
+            slot0_.sqrtPriceX96,
+            TickMath.getSqrtRatioAtTick(lowerTick),
+            amount
+        );
 
         // We will also update the liquidity of the pool, based on the amount being added.
         liquidity += uint128(amount);
