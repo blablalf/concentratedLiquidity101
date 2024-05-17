@@ -4,6 +4,7 @@ pragma solidity ^0.8.14;
 import "./interfaces/IERC20.sol";
 import "./interfaces/IUniswapV3FlashCallback.sol";
 import "./interfaces/IUniswapV3MintCallback.sol";
+import "./interfaces/IUniswapV3Pool.sol";
 import "./interfaces/IUniswapV3SwapCallback.sol";
 
 import "./lib/LiquidityMath.sol";
@@ -14,7 +15,7 @@ import "./lib/TickBitmap.sol";
 import "./lib/TickMath.sol";
 import "./lib/SwapMath.sol";
 
-contract UniswapV3Pool {
+contract UniswapV3Pool is IUniswapV3Pool {
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
     using Tick for mapping(int24 => Tick.Info);
@@ -61,12 +62,6 @@ contract UniswapV3Pool {
         uint160 sqrtPriceX96;
         // Current tick
         int24 tick;
-    }
-
-    struct CallbackData {
-        address token0;
-        address token1;
-        address payer;
     }
 
     struct SwapState {
