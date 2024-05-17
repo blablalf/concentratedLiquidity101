@@ -36,7 +36,8 @@ library Tick {
             tickInfo.initialized = true;
         }
 
-         tickInfo.liquidityNet = upper
+        tickInfo.liquidityGross = liquidityAfter;
+        tickInfo.liquidityNet = upper
             ? int128(int256(tickInfo.liquidityNet) - liquidityDelta)
             : int128(int256(tickInfo.liquidityNet) + liquidityDelta);
     }
