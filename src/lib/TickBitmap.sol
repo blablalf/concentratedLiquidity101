@@ -21,6 +21,8 @@ library TickBitmap {
         self[wordPos] ^= mask;
     }
 
+    /// @notice Returns the next initialized tick contained in the same word (or adjacent word) as the tick that is either
+    /// to the left (less than or equal to) or right (greater than) of the given tick
     function nextInitializedTickWithinOneWord(
         mapping(int16 => uint256) storage self,
         int24 tick,

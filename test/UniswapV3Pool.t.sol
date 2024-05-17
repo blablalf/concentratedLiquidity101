@@ -4,6 +4,9 @@ pragma solidity ^0.8.14;
 import {Test, stdError} from "forge-std/Test.sol";
 import "./TestUtils.sol";
 
+import "../src/lib/LiquidityMath.sol";
+import "../src/lib/TickMath.sol";
+
 import "./ERC20Mintable.sol";
 import "../src/UniswapV3Pool.sol";
 
