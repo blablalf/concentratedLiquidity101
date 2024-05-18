@@ -138,10 +138,10 @@ contract UniswapV3Pool is IUniswapV3Pool {
         bool flippedUpper = ticks.update(upperTick, int128(amount), true);
 
         if (flippedLower) {
-            tickBitmap.flipTick(lowerTick, 1);
+            tickBitmap.flipTick(lowerTick, int24(tickSpacing));
         }
         if (flippedUpper) {
-            tickBitmap.flipTick(upperTick, 1);
+            tickBitmap.flipTick(upperTick, int24(tickSpacing));
         }
 
         Position.Info storage position = positions.get(
@@ -234,7 +234,7 @@ contract UniswapV3Pool is IUniswapV3Pool {
 
             (step.nextTick, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
                 state.tick,
-                1,
+                int24(tickSpacing),
                 zeroForOne
             );
 
