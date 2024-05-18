@@ -6,16 +6,29 @@ import "./interfaces/IUniswapV3Pool.sol";
 import "./interfaces/IUniswapV3Manager.sol";
 
 import "./lib/LiquidityMath.sol";
+import "./lib/PoolAddress.sol";
 import "./lib/TickMath.sol";
 
 contract UniswapV3Manager is IUniswapV3Manager {
     error SlippageCheckFailed(uint256 amount0, uint256 amount1);
 
+    address public immutable factory;
+
+    constructor(address factory_) {
+        factory = factory_;
+    }
+
     function mint(MintParams calldata params)
         public
         returns (uint256 amount0, uint256 amount1)
     {
-        IUniswapV3Pool pool = IUniswapV3Pool(params.poolAddress);
+        address poolAddress = PoolAddress.computeAddress(
+            factory,
+            params.tokenA,
+            params.tokenB,
+            params.tickSpacing
+        );
+        IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
 
         (uint160 sqrtPriceX96, ) = pool.slot0();
         uint160 sqrtPriceLowerX96 = TickMath.getSqrtRatioAtTick(
@@ -50,26 +63,31 @@ contract UniswapV3Manager is IUniswapV3Manager {
             revert SlippageCheckFailed(amount0, amount1);
     }
 
-    function swap(
-        address poolAddress_,
-        bool zeroForOne,
-        uint256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bytes calldata data
-    ) public returns (int256, int256) {
+    function swap(SwapParams calldata params) public returns (int256, int256) {
+        (address tokenA, address tokenB) = params.tokenA < params.tokenB
+            ? (params.tokenA, params.tokenB)
+            : (params.tokenB, params.tokenA);
+
+        address poolAddress = PoolAddress.computeAddress(
+            factory,
+            tokenA,
+            tokenB,
+            params.tickSpacing
+        );
+
         return
-            IUniswapV3Pool(poolAddress_).swap(
+            IUniswapV3Pool(poolAddress).swap(
                 msg.sender,
-                zeroForOne,
-                amountSpecified,
-                sqrtPriceLimitX96 == 0
+                params.zeroForOne,
+                params.amountSpecified,
+                params.sqrtPriceLimitX96 == 0
                     ? (
-                        zeroForOne
+                        params.zeroForOne
                             ? TickMath.MIN_SQRT_RATIO + 1
                             : TickMath.MAX_SQRT_RATIO - 1
                     )
-                    : sqrtPriceLimitX96,
-                data
+                    : params.sqrtPriceLimitX96,
+                params.data
             );
     }
 
