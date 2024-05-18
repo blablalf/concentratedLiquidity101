@@ -14,14 +14,23 @@ interface IUniswapV3Manager {
         uint256 amount1Min;
     }
 
+    struct SwapSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 tickSpacing;
+        uint256 amountIn;
+        uint160 sqrtPriceLimitX96;
+    }
 
     struct SwapParams {
-        address tokenA;
-        address tokenB;
-        uint24 tickSpacing;
-        bool zeroForOne;
-        uint256 amountSpecified;
-        uint160 sqrtPriceLimitX96;
-        bytes data;
+        bytes path;
+        address recipient;
+        uint256 amountIn;
+        uint256 minAmountOut;
+    }
+
+    struct SwapCallbackData {
+        bytes path;
+        address payer;
     }
 }
