@@ -18,6 +18,9 @@ library TickBitmap {
         require(tick % tickSpacing == 0); // ensure that the tick is spaced
         (int16 wordPos, uint8 bitPos) = position(tick / tickSpacing);
         uint256 mask = 1 << bitPos;
+        // XOR Operator
+        // when tick not initialized 0^1=1
+        // when tick  initialized 1^1=0
         self[wordPos] ^= mask;
     }
 
@@ -30,10 +33,12 @@ library TickBitmap {
         bool lte
     ) internal view returns (int24 next, bool initialized) {
         int24 compressed = tick / tickSpacing;
+        if (tick < 0 && tick % tickSpacing != 0) compressed--; // round towards negative infinity
     
         if (lte) {
             (int16 wordPos, uint8 bitPos) = position(compressed);
             uint256 mask = (1 << bitPos) - 1 + (1 << bitPos);
+
             uint256 masked = self[wordPos] & mask;
 
             initialized = masked != 0;
@@ -48,11 +53,10 @@ library TickBitmap {
 
             initialized = masked != 0;
             // overflow/underflow is possible, but prevented externally by limiting both tickSpacing and tick
+            // Don’t forget that bitPos is for compress+1 and not compress
             next = initialized
                 ? (compressed + 1 + int24(uint24((BitMath.leastSignificantBit(masked) - bitPos)))) * tickSpacing
                 : (compressed + 1 + int24(uint24((type(uint8).max - bitPos)))) * tickSpacing;
         }
     }
-
-
 }

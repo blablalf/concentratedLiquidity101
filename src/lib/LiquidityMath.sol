@@ -19,6 +19,7 @@ library LiquidityMath {
         }
     }
 
+    /// $L = \frac{\Delta x \sqrt{P_u} \sqrt{P_l}}{\Delta \sqrt{P}}$
     function getLiquidityForAmount0(
         uint160 sqrtPriceAX96,
         uint160 sqrtPriceBX96,
@@ -37,6 +38,7 @@ library LiquidityMath {
         );
     }
 
+    /// $L = \frac{\Delta y}{\Delta \sqrt{P}}$
     function getLiquidityForAmount1(
         uint160 sqrtPriceAX96,
         uint160 sqrtPriceBX96,
@@ -91,9 +93,4 @@ library LiquidityMath {
             );
         }
     }
-
-
-
-
-
 }
