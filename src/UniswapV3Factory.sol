@@ -9,7 +9,6 @@ contract UniswapV3Factory is IUniswapV3PoolDeployer {
     error PoolAlreadyExists();
     error ZeroAddressNotAllowed();
     error TokensMustBeDifferent();
-    error TokenXCannotBeZero();
     error UnsupportedFee();
 
     event PoolCreated(
@@ -42,7 +41,7 @@ contract UniswapV3Factory is IUniswapV3PoolDeployer {
             ? (tokenX, tokenY)
             : (tokenY, tokenX);
 
-        if (tokenX == address(0)) revert TokenXCannotBeZero();
+        if (tokenX == address(0)) revert ZeroAddressNotAllowed();
         if (pools[tokenX][tokenY][fee] != address(0))
             revert PoolAlreadyExists();
         

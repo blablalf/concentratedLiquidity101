@@ -4,19 +4,15 @@ pragma solidity ^0.8.14;
 import "forge-std/console.sol";
 import "forge-std/Script.sol";
 
-import "../test/ERC20Mintable.sol";
-import "../test/TestUtils.sol";
-
 import "../src/interfaces/IUniswapV3Manager.sol";
-
 import "../src/lib/FixedPoint96.sol";
 import "../src/lib/Math.sol";
-
 import "../src/UniswapV3Factory.sol";
 import "../src/UniswapV3Manager.sol";
 import "../src/UniswapV3Pool.sol";
 import "../src/UniswapV3Quoter.sol";
-
+import "../test/ERC20Mintable.sol";
+import "../test/TestUtils.sol";
 
 contract DeployDevelopment is Script, TestUtils {
     struct TokenBalances {
@@ -54,7 +50,7 @@ contract DeployDevelopment is Script, TestUtils {
             factory,
             address(weth),
             address(usdc),
-            60,
+            3000,
             5000
         );
 
@@ -62,7 +58,7 @@ contract DeployDevelopment is Script, TestUtils {
             factory,
             address(weth),
             address(uni),
-            60,
+            3000,
             10
         );
 
@@ -70,7 +66,7 @@ contract DeployDevelopment is Script, TestUtils {
             factory,
             address(wbtc),
             address(usdt),
-            60,
+            3000,
             20_000
         );
 
@@ -78,7 +74,7 @@ contract DeployDevelopment is Script, TestUtils {
             factory,
             address(usdt),
             address(usdc),
-            10,
+            500,
             1
         );
 
@@ -126,7 +122,7 @@ contract DeployDevelopment is Script, TestUtils {
                 uint160(81286379615119694729911992320), // ~1.05, int(math.sqrt(1/0.95) * 2**96)
                 1_000_000 ether,
                 1_000_000 ether,
-                10
+                500
             )
         );
 
