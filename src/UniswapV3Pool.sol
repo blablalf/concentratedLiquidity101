@@ -10,8 +10,10 @@ import "./interfaces/IUniswapV3Pool.sol";
 import "./interfaces/IUniswapV3PoolDeployer.sol";
 import "./interfaces/IUniswapV3SwapCallback.sol";
 
+import "./lib/FixedPoint128.sol";
 import "./lib/LiquidityMath.sol";
 import "./lib/Math.sol";
+import "./lib/Oracle.sol";
 import "./lib/Position.sol";
 import "./lib/Tick.sol";
 import "./lib/TickBitmap.sol";
@@ -19,6 +21,7 @@ import "./lib/TickMath.sol";
 import "./lib/SwapMath.sol";
 
 contract UniswapV3Pool is IUniswapV3Pool {
+    using Oracle for Oracle.Observation[65535];
     using Position for Position.Info;
     using Position for mapping(bytes32 => Position.Info);
     using Tick for mapping(int24 => Tick.Info);
@@ -51,6 +54,11 @@ contract UniswapV3Pool is IUniswapV3Pool {
     );
 
     event Flash(address indexed recipient, uint256 amount0, uint256 amount1);
+
+    event IncreaseObservationCardinalityNext(
+        uint16 observationCardinalityNextOld,
+        uint16 observationCardinalityNextNew
+    );
     
     event Mint(
         address sender,
@@ -91,6 +99,12 @@ contract UniswapV3Pool is IUniswapV3Pool {
         uint160 sqrtPriceX96;
         // Current tick
         int24 tick;
+        // Most recent observation index
+        uint16 observationIndex;
+        // Maximum number of observations
+        uint16 observationCardinality;
+        // Next maximum number of observations
+        uint16 observationCardinalityNext;
     }
 
     struct SwapState {
@@ -117,11 +131,11 @@ contract UniswapV3Pool is IUniswapV3Pool {
 
     // Amount of liquidity, L.
     uint128 public liquidity;
-
-    // Ticks info
-    mapping(int24 => Tick.Info) public ticks;
+    Oracle.Observation[65535] public observations;
     // Positions info
     mapping(bytes32 => Position.Info) public positions;
+    // Ticks info
+    mapping(int24 => Tick.Info) public ticks;
 
     mapping(int16 => uint256) public tickBitmap;
 
@@ -137,7 +151,17 @@ contract UniswapV3Pool is IUniswapV3Pool {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
+        (uint16 cardinality, uint16 cardinalityNext) = observations.initialize(
+            _blockTimestamp()
+        );
+
+        slot0 = Slot0({
+            sqrtPriceX96: sqrtPriceX96,
+            tick: tick,
+            observationIndex: 0,
+            observationCardinality: cardinality,
+            observationCardinalityNext: cardinalityNext
+        });
     }
 
     struct ModifyPositionParams {
@@ -476,11 +500,26 @@ contract UniswapV3Pool is IUniswapV3Pool {
         if (state.tick != slot0_.tick) {
             
            (
+                uint16 observationIndex,
+                uint16 observationCardinality
+            ) = observations.write(
+                    slot0_.observationIndex,
+                    _blockTimestamp(),
+                    slot0_.tick,
+                    slot0_.observationCardinality,
+                    slot0_.observationCardinalityNext
+                );
+
+            (
                 slot0.sqrtPriceX96,
-                slot0.tick
+                slot0.tick,
+                slot0.observationIndex,
+                slot0.observationCardinality
             ) = (
                 state.sqrtPriceX96,
-                state.tick
+                state.tick,
+                observationIndex,
+                observationCardinality
             );
         } else {
             slot0.sqrtPriceX96 = state.sqrtPriceX96;
@@ -567,6 +606,39 @@ contract UniswapV3Pool is IUniswapV3Pool {
         emit Flash(msg.sender, amount0, amount1);
     }
 
+    function observe(uint32[] calldata secondsAgos)
+        public
+        view
+        returns (int56[] memory tickCumulatives)
+    {
+        return
+            observations.observe(
+                _blockTimestamp(),
+                secondsAgos,
+                slot0.tick,
+                slot0.observationIndex,
+                slot0.observationCardinality
+            );
+    }
+
+    function increaseObservationCardinalityNext(
+        uint16 observationCardinalityNext
+    ) public {
+        uint16 observationCardinalityNextOld = slot0.observationCardinalityNext;
+        uint16 observationCardinalityNextNew = observations.grow(
+            observationCardinalityNextOld,
+            observationCardinalityNext
+        );
+
+        if (observationCardinalityNextNew != observationCardinalityNextOld) {
+            slot0.observationCardinalityNext = observationCardinalityNextNew;
+            emit IncreaseObservationCardinalityNext(
+                observationCardinalityNextOld,
+                observationCardinalityNextNew
+            );
+        }
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -580,5 +652,9 @@ contract UniswapV3Pool is IUniswapV3Pool {
 
     function balance1() internal returns (uint256 balance) {
         balance = IERC20(token1).balanceOf(address(this));
+    }
+
+    function _blockTimestamp() internal view returns (uint32 timestamp) {
+        timestamp = uint32(block.timestamp);
     }
 }
