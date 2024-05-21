@@ -28,9 +28,6 @@ I have compiled my learnings and notes in my [Notion](https://dour-sassafras-425
    - Repository: [GitHub - atiselsts/uniswap-v3-liquidity-math](https://github.com/atiselsts/uniswap-v3-liquidity-math)
    - Description: This repository contains code examples that implement the equations and concepts from the "Liquidity Math in Uniswap V3" paper. It was a valuable resource for practical understanding and application.
 
-## Personal Notes
-
-I have compiled my learnings and notes in my [Notion](#) workspace. Feel free to explore it for detailed explanations and additional resources.
 
 ## Contact
 
